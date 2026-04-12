@@ -189,6 +189,13 @@ public sealed class SolarmanV5Client : IDisposable
                 $"  Warning: checksum mismatch (got 0x{rest[payloadLen]:X2}, expected 0x{expected:X2})");
         }
 
+        // Dump the full raw response frame for diagnostics
+        var fullFrame = new byte[header.Length + rest.Length];
+        Array.Copy(header, fullFrame, header.Length);
+        Array.Copy(rest, 0, fullFrame, header.Length, rest.Length);
+        Console.WriteLine($"    Full V5 response ({fullFrame.Length} bytes): {BytesToHex(fullFrame)}");
+        Console.WriteLine($"    Control: {header[3]:X2} {header[4]:X2}  PayloadLen: {payloadLen}");
+
         // Modbus response starts after the 14-byte inner header:
         //   frame_type(1) + sensor_type(1) + delivery_time(4) + power_on_time(4) + offset_time(4) = 14
         const int innerHeaderLen = 14;
