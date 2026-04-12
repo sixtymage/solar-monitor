@@ -35,6 +35,11 @@ secrets.json
 Thumbs.db
 desktop.ini
 
+# ── Python scratch scripts ───────────────────────────────────────────────────
+probe.py
+__pycache__/
+*.pyc
+
 # ── Editors ───────────────────────────────────────────────────────────────────
 .idea/
 *.swp
