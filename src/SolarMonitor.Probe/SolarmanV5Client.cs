@@ -61,6 +61,11 @@ public sealed class SolarmanV5Client : IDisposable
     /// from the Modbus device at <paramref name="deviceAddress"/> (typically 1 for Deye).
     /// Returns register values in the order they appear in the response (big-endian, converted to ushort).
     /// </summary>
+    /// <remarks>
+    /// The LSW-3 dongle shares the RS485 bus between its cloud sync cycle and local requests.
+    /// A 2-byte response of 0x05 0x00 means "bus busy, retry". We retry with a short delay
+    /// before giving up — identical to how pysolarmanv5 handles this case.
+    /// </remarks>
     public async Task<ushort[]> ReadHoldingRegistersAsync(
         byte deviceAddress,
         ushort startRegister,
@@ -70,20 +75,42 @@ public sealed class SolarmanV5Client : IDisposable
         if (_stream is null)
             throw new InvalidOperationException("Not connected — call ConnectAsync first.");
 
-        var modbusRequest = BuildModbusReadRequest(deviceAddress, startRegister, count);
-        var frame = BuildV5Frame(modbusRequest);
+        const int maxAttempts = 5;
+        const int retryDelayMs = 1_500;
 
-        Console.WriteLine($"  → Sending request: device={deviceAddress}, reg={startRegister}, count={count}");
-        Console.WriteLine($"    Frame ({frame.Length} bytes): {BytesToHex(frame)}");
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var modbusRequest = BuildModbusReadRequest(deviceAddress, startRegister, count);
+            var frame = BuildV5Frame(modbusRequest);
 
-        await _stream.WriteAsync(frame, ct);
-        await _stream.FlushAsync(ct);
+            Console.WriteLine($"  → Request (attempt {attempt}/{maxAttempts}): device={deviceAddress}, reg={startRegister}, count={count}");
+            Console.WriteLine($"    Frame ({frame.Length} bytes): {BytesToHex(frame)}");
 
-        var modbusResponse = await ReadV5ResponseAsync(ct);
+            await _stream.WriteAsync(frame, ct);
+            await _stream.FlushAsync(ct);
 
-        Console.WriteLine($"  ← Modbus response ({modbusResponse.Length} bytes): {BytesToHex(modbusResponse)}");
+            var modbusResponse = await ReadV5ResponseAsync(ct);
+            Console.WriteLine($"  ← Modbus response ({modbusResponse.Length} bytes): {BytesToHex(modbusResponse)}");
 
-        return ParseModbusReadResponse(modbusResponse);
+            // 0x05 0x00 = RS485 bus busy (dongle mid-sync with inverter), retry after delay
+            if (modbusResponse.Length == 2 && modbusResponse[0] == 0x05 && modbusResponse[1] == 0x00)
+            {
+                if (attempt < maxAttempts)
+                {
+                    Console.WriteLine($"  Bus busy (0x05 0x00) — waiting {retryDelayMs}ms before retry...");
+                    await Task.Delay(retryDelayMs, ct);
+                    continue;
+                }
+
+                throw new TimeoutException(
+                    $"Dongle returned 0x05 0x00 (bus busy) on all {maxAttempts} attempts. " +
+                    "The inverter RS485 bus may be occupied by the cloud sync cycle.");
+            }
+
+            return ParseModbusReadResponse(modbusResponse);
+        }
+
+        throw new InvalidOperationException("Unreachable.");
     }
 
     // ─── Frame construction ───────────────────────────────────────────────────
@@ -107,8 +134,11 @@ public sealed class SolarmanV5Client : IDisposable
 
     private byte[] BuildV5Frame(byte[] modbusFrame)
     {
-        // payload = frame_type(1) + sensor_type(1) + times(12) + modbus(n) = 14 + n
-        int payloadLen = 14 + modbusFrame.Length;
+        // payload = frame_type(1) + sensor_type(1) + times(12) + reserved(1) + modbus(n) = 15 + n
+        // The reserved byte at offset 25 (value 0x00) is required — omitting it causes the dongle
+        // to reject the request with a 0x05 0x00 "invalid frame" response. Confirmed by diffing
+        // against pysolarmanv5 wire captures.
+        int payloadLen = 15 + modbusFrame.Length;
 
         // total = start(1) + len(2) + control(2) + seq(2) + serial(4) + payload + checksum(1) + end(1)
         //       = 13 + payloadLen
@@ -141,6 +171,8 @@ public sealed class SolarmanV5Client : IDisposable
 
         // Delivery time, power-on time, offset time — all zeroed (12 bytes)
         for (int t = 0; t < 12; t++) frame[i++] = 0x00;
+
+        frame[i++] = 0x00; // reserved byte — must be present (see BuildV5Frame comment)
 
         // Modbus RTU frame
         Array.Copy(modbusFrame, 0, frame, i, modbusFrame.Length);

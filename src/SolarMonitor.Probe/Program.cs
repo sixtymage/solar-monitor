@@ -59,6 +59,13 @@ catch (Exception ex)
 
 Console.WriteLine();
 
+// ─── Smoke test: single register read ────────────────────────────────────────
+// Read just 1 register first. If this also returns 05 00 the inverter's RS485
+// is silent. If it succeeds but bulk reads fail, the dongle has a read-size limit.
+await ReadAndPrint(client, "Smoke test (1 register @ 100)", startRegister: 100, count: 1);
+
+Console.WriteLine();
+
 // ─── Read battery and system state area (registers 100-139) ──────────────────
 // Commonly documented registers in this range:
 //   103 -- Battery SOC (%)
