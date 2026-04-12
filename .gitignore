@@ -1,0 +1,41 @@
+# ── .NET ─────────────────────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+*.DotSettings.user
+TestResults/
+coverage/
+*.ncrunch*
+
+# ── Publish / deploy ──────────────────────────────────────────────────────────
+publish/
+**/Properties/PublishProfiles/
+
+# ── Node / frontend ───────────────────────────────────────────────────────────
+node_modules/
+dist/
+.next/
+.nuxt/
+.cache/
+*.tsbuildinfo
+
+# ── Environment / secrets — NEVER commit these ───────────────────────────────
+.env
+.env.*
+!.env.example
+appsettings.local.json
+appsettings.Development.json
+secrets.json
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Packages added here as needed; all <PackageReference> in .csproj files omit Version= -->
+  </ItemGroup>
+</Project>

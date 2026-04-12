@@ -1,0 +1,47 @@
+version: '3.9'
+
+# Solar Monitor — Docker Compose
+# Run on Synology NAS alongside existing Plex/cloudflared stack.
+# Secrets (inverter IPs, serial numbers) are injected via environment variables
+# or a .env file — never committed to source control.
+
+services:
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: solarmonitor
+      POSTGRES_USER: solarmonitor
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"   # expose locally for tooling; lock down in production
+
+  # poller:
+  #   build: ../src/SolarMonitor.Poller
+  #   restart: unless-stopped
+  #   environment:
+  #     ConnectionStrings__SolarMonitor: "Host=timescaledb;Database=solarmonitor;Username=solarmonitor;Password=${DB_PASSWORD}"
+  #     Inverters__0__Host: ${INVERTER_0_HOST}
+  #     Inverters__0__Serial: ${INVERTER_0_SERIAL}
+  #     Inverters__1__Host: ${INVERTER_1_HOST}
+  #     Inverters__1__Serial: ${INVERTER_1_SERIAL}
+  #     Inverters__2__Host: ${INVERTER_2_HOST}
+  #     Inverters__2__Serial: ${INVERTER_2_SERIAL}
+  #   depends_on:
+  #     - timescaledb
+
+  # api:
+  #   build: ../src/SolarMonitor.Api
+  #   restart: unless-stopped
+  #   environment:
+  #     ConnectionStrings__SolarMonitor: "Host=timescaledb;Database=solarmonitor;Username=solarmonitor;Password=${DB_PASSWORD}"
+  #   depends_on:
+  #     - timescaledb
+  #   ports:
+  #     - "5000:8080"
+
+volumes:
+  timescaledb_data:
