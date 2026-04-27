@@ -6,7 +6,14 @@ Three-phase installation with three single-phase 8kW inverters (one per phase).
 Each inverter is polled independently at its own IP via the Solarman LSW-3 WiFi
 dongle (SolarmanV5 protocol, port 8899, Modbus device address 1).
 
-**Battery:** Dyness LiFePO4, 48V nominal, communicating via Li-BMS (CAN).
+**Topology:** All three inverters are configured as **phase masters** in a
+synchronized 3-phase setup (UI "Parallel Information" field reads M1A / M3B /
+M2C — Master, address, Phase A/B/C). There is no master/slave hierarchy.
+
+**Battery:** Dyness LiFePO4, 48V nominal, communicating via Li-BMS (CAN). The
+BMS is shared across all three inverters — every inverter sees identical
+battery state via CAN. **Do not aggregate battery registers (183/184/190/191)
+across inverters; this triple-counts.** Use a single canonical reading.
 
 **Reference:** Register layout verified against `kbialek/deye-inverter-mqtt`
 `metric_group_deye_sg02lp1` and `metric_group_deye_sg02lp1_battery`.
@@ -29,20 +36,16 @@ The SUN-8K-SG01LP1 shares the same register layout as the SG02LP1.
 
 | Reg | Name | Unit | Scale | Type | Status | Notes |
 |-----|------|------|-------|------|--------|-------|
-| 182 | Battery temperature | °C | raw × 0.1 − 100 | U_WORD | ✅ | Display confirmed 33.4°C exactly |
-| 183 | Battery voltage | V | × 0.01 | U_WORD | ✅ | Display confirmed 49.81V (probe: 49.80V) |
-| 184 | Battery SOC | % | × 1 | U_WORD | ✅ | Display 93% / probe 94% — 5-min drift |
+| 182 | Battery temperature | °C | raw × 0.1 − 100 | U_WORD | 🔵 | Phase 1 reads 30.4°C correctly; Phases 2 & 3 return literal `0` (decodes to −100°C). Sensor populated only on the inverter directly wired to it; encoding itself is correct. |
+| 183 | Battery voltage | V | × 0.01 | U_WORD | ✅ | UI confirms LV-48V battery type; probe 50.31V at 59% SOC — physically consistent with LiFePO4 charging |
+| 184 | Battery SOC | % | × 1 | U_WORD | ✅ | All three inverters report identical SOC via shared BMS |
 | 185 | Battery power (alt?) | W | × 1 | S_WORD | ❓ | May duplicate reg 190; sign convention unverified |
 | 189 | Battery status | — | — | U_WORD | 🔵 | 0 = normal; full status bitmask TBD |
-| 190 | Battery power | W | × 1 | S_WORD | ⚡ | reg[190] × 1W = reg[191] × 0.01A × reg[183] × 0.01V ✓ |
-| 191 | Battery current | A | × 0.01 | S_WORD | ⚡ | Sign convention: positive = **discharging** (to confirm vs display) |
+| 190 | Battery power | W | × 1 | S_WORD | ✅ | reg[190] × 1W = reg[191] × 0.01A × reg[183] × 0.01V ✓ — exact match across all 3 inverters (e.g. 50.31 × −40.02 = −2013W) |
+| 191 | Battery current | A | × 0.01 | S_WORD | ✅ | Sign convention **confirmed**: negative = charging, positive = discharging. Verified during grid-charge cycle (PV + grid > load → battery storing → reg 191 negative). |
 
 > **Temperature encoding:** Deye stores temperatures as `(°C + 100) × 10`.
 > Formula: `actual_temp = raw × 0.1 − 100`. Allows representation of sub-zero values.
->
-> **Current sign convention:** Probe data shows positive current while SOC was
-> declining (discharging). Needs one more side-by-side verification to confirm
-> positive = discharge, negative = charge.
 
 ---
 
@@ -50,13 +53,15 @@ The SUN-8K-SG01LP1 shares the same register layout as the SG02LP1.
 
 | Reg | Name | Unit | Scale | Type | Status | Notes |
 |-----|------|------|-------|------|--------|-------|
-| 109 | PV1 voltage | V | × 0.1 | U_WORD | 🔵 | 340V in sun, 91V in low light — plausible |
-| 110 | PV1 current | A | × 0.1 | U_WORD | 🔵 | Varies with irradiance as expected |
-| 111 | PV2 voltage | V | × 0.1 | U_WORD | 🔵 | Near zero in current readings |
-| 112 | PV2 current | A | × 0.1 | U_WORD | 🔵 | Near zero in current readings |
-| 186 | PV1 power | W | × 1 | U_WORD | 🔵 | 15W in low light; 118W in partial sun — trend plausible |
-| 187 | PV2 power | W | × 1 | U_WORD | 🔵 | 0W — PV2 string may be absent or unconnected |
-| 188 | PV3 power | W | × 1 | U_WORD | 🔵 | 0W |
+| 109 | PV1 voltage | V | × 0.1 | U_WORD | ✅ | Phase 3: probe 351.9V vs UI 352.00V — exact |
+| 110 | PV1 current | A | × 0.1 | U_WORD | ✅ | Phase 3: probe 1.9A vs UI 1.90A — exact |
+| 111 | PV2 voltage | V | × 0.1 | U_WORD | ✅ | Phase 3: probe 1.5V vs UI 1.50V — exact (PV2 effectively unused, just sensor noise) |
+| 112 | PV2 current | A | × 0.1 | U_WORD | ✅ | Phase 1: probe 0.1A vs UI 0.10A — exact |
+| 113 | PV3 voltage | V | × 0.1 | U_WORD | ✅ | All inverters: 0 — matches UI (PV3 not wired) |
+| 114 | PV3 current | A | × 0.1 | U_WORD | ✅ | All inverters: 0 — matches UI (PV3 not wired) |
+| 186 | PV1 power | W | × 1 | U_WORD | ✅ | Phase 3: probe 658W vs UI 670W — within minute-scale irradiance drift |
+| 187 | PV2 power | W | × 1 | U_WORD | 🔵 | Always 0W in observed data — scale unconfirmable until non-zero reading |
+| 188 | PV3 power | W | × 1 | U_WORD | 🔵 | Always 0W; PV3 unwired |
 
 ---
 
@@ -69,7 +74,8 @@ The SUN-8K-SG01LP1 shares the same register layout as the SG02LP1.
 | 169 | Total grid power | W | × 10 | S_WORD | 🔵 | Not yet read; negative = exporting |
 | 173 | Inverter L1 power | W | × 1 | S_WORD | 🔵 | Not yet read |
 | 175 | Total load power | W | × 1 | S_WORD | 🔵 | Not yet read |
-| 192 | Grid frequency | Hz | × 0.01 | U_WORD | ✅ | reg = 5000 / 5001 → 50.00 / 50.01 Hz ✓ |
+| 192 | Grid frequency | Hz | × 0.01 | U_WORD | ✅ | UI cross-check: probe 49.91 Hz vs UI 49.83–49.96 Hz across all 3 phases |
+| 193 | Inverter frequency | Hz | × 0.01 | U_WORD | 🔵 | Always identical to reg 192 in observed data — likely the inverter-side sync frequency |
 
 ---
 
@@ -78,7 +84,7 @@ The SUN-8K-SG01LP1 shares the same register layout as the SG02LP1.
 | Reg | Name | Unit | Scale | Type | Status | Notes |
 |-----|------|------|-------|------|--------|-------|
 | 96–97 | Total production | kWh | × 0.1 | U_DWORD | 🔵 | Not yet read (outside current probe range) |
-| 108 | Daily production | kWh | × 0.1 | U_WORD | 🔵 | reg = 79 → 7.9 kWh; consistent with late-afternoon reading |
+| 108 | Daily production | kWh | × 0.1 | U_WORD | ✅ | UI cross-check across all 3 inverters: 73→7.3, 81→8.1, 111→11.1 kWh vs UI 7.4, 8.3, 11.4 kWh (within minute-scale drift) |
 | 70 | Daily battery charge | kWh | × 0.1 | U_WORD | 🔵 | Not yet read |
 | 71 | Daily battery discharge | kWh | × 0.1 | U_WORD | 🔵 | Not yet read |
 | 76 | Daily energy bought | kWh | × 0.1 | U_WORD | 🔵 | Not yet read |
