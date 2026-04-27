@@ -66,21 +66,27 @@ await ReadAndPrint(client, "Smoke test (1 register @ 100)", startRegister: 100, 
 
 Console.WriteLine();
 
-// ─── Read battery and system state area (registers 100-139) ──────────────────
-// Commonly documented registers in this range:
-//   103 -- Battery SOC (%)
-//   106 -- Battery voltage (x 0.1 V)
-//   107 -- Battery current (signed, x 0.01 A)
-//   168 -- Total load power (W)
+// ─── Energy counters / temperatures area (registers 60-99) ───────────────────
+// Hunting for: total cumulative production (DWORD at 96/97), daily energy
+// bought/sold (76/77), daily battery charge/discharge (70/71), inverter
+// temperatures (90/91).
+await ReadAndPrint(client, "Energy counters / temperatures", startRegister: 60, count: 40);
+
+Console.WriteLine();
+
+// ─── Battery / system state area (registers 100-139) ─────────────────────────
 await ReadAndPrint(client, "Battery / system state area", startRegister: 100, count: 40);
 
 Console.WriteLine();
 
-// ─── Read PV and grid area (registers 180-219) ───────────────────────────────
-// Commonly documented registers in this range:
-//   186 -- PV1 power (W)
-//   187 -- PV2 power (W)
-//   169-173 -- Grid power per phase and total
+// ─── Grid / AC measurement area (registers 140-179) ──────────────────────────
+// Hunting for: grid voltage L1 (~228-237V), AC current (~5.8-6.3A), grid power,
+// inverter L1 power (~-1416 to -1491W), total load power.
+await ReadAndPrint(client, "Grid / AC measurement area", startRegister: 140, count: 40);
+
+Console.WriteLine();
+
+// ─── PV and grid area (registers 180-219) ────────────────────────────────────
 await ReadAndPrint(client, "PV / grid area", startRegister: 180, count: 40);
 
 Console.WriteLine();

@@ -69,11 +69,11 @@ The SUN-8K-SG01LP1 shares the same register layout as the SG02LP1.
 
 | Reg | Name | Unit | Scale | Type | Status | Notes |
 |-----|------|------|-------|------|--------|-------|
-| 150 | Grid voltage L1 | V | × 0.1 | U_WORD | 🔵 | Not yet read in probe range |
-| 167 | CT L1 power | W | × 1 | S_WORD | 🔵 | Not yet read in probe range |
-| 169 | Total grid power | W | × 10 | S_WORD | 🔵 | Not yet read; negative = exporting |
-| 173 | Inverter L1 power | W | × 1 | S_WORD | 🔵 | Not yet read |
-| 175 | Total load power | W | × 1 | S_WORD | 🔵 | Not yet read |
+| 150 | Grid voltage L1 | V | × 0.1 | U_WORD | ✅ | UI cross-check: probe 225.7 / 236.3 / 232.6 V vs UI 224.6 / 236.1 / 232.2 V across all 3 phases |
+| 167 | CT / grid power | W | × 1 | S_WORD | 🔵 | Captured: 4218 / 1750 / 3358 W. Identical to reg 169 in our data. Magnitude doesn't match UI's "Inverter Output Power L1L2" or "Total DC Input"; meaning unconfirmed. |
+| 169 | Grid power (mirror of 167) | W | × 1 | S_WORD | 🔵 | Always identical to reg 167 in observed data |
+| 173 | Inverter output power L1L2 | W | × 1 | S_WORD | ✅ | UI cross-check: probe −1737 / −1728 / −1749 W vs UI −1818 / −1746 / −1673 W. Sign convention **confirmed**: negative = importing from grid, positive = exporting. |
+| 175 | Inverter output power (mirror of 173) | W | × 1 | S_WORD | 🔵 | Always identical to reg 173 in observed data — **not** "Total load power" as previously hypothesised |
 | 192 | Grid frequency | Hz | × 0.01 | U_WORD | ✅ | UI cross-check: probe 49.91 Hz vs UI 49.83–49.96 Hz across all 3 phases |
 | 193 | Inverter frequency | Hz | × 0.01 | U_WORD | 🔵 | Always identical to reg 192 in observed data — likely the inverter-side sync frequency |
 
@@ -83,12 +83,12 @@ The SUN-8K-SG01LP1 shares the same register layout as the SG02LP1.
 
 | Reg | Name | Unit | Scale | Type | Status | Notes |
 |-----|------|------|-------|------|--------|-------|
-| 96–97 | Total production | kWh | × 0.1 | U_DWORD | 🔵 | Not yet read (outside current probe range) |
-| 108 | Daily production | kWh | × 0.1 | U_WORD | ✅ | UI cross-check across all 3 inverters: 73→7.3, 81→8.1, 111→11.1 kWh vs UI 7.4, 8.3, 11.4 kWh (within minute-scale drift) |
-| 70 | Daily battery charge | kWh | × 0.1 | U_WORD | 🔵 | Not yet read |
-| 71 | Daily battery discharge | kWh | × 0.1 | U_WORD | 🔵 | Not yet read |
-| 76 | Daily energy bought | kWh | × 0.1 | U_WORD | 🔵 | Not yet read |
-| 77 | Daily energy sold | kWh | × 0.1 | U_WORD | 🔵 | Not yet read |
+| 96 / 97 | Cumulative production (low / high) | kWh | × 0.1 | U_DWORD | ✅ | Little-endian word order: `total = reg[96] + reg[97] × 65536`. UI cross-check: probe 21.52 / 23.61 / 27.03 MWh vs UI 21.51 / 23.61 / 27.03 MWh — exact across all 3 inverters. |
+| 108 | Daily production | kWh | × 0.1 | U_WORD | ✅ | UI cross-check across all 3 inverters: 81→8.1, 89→8.9, 121→12.1 kWh vs UI 8.1, 8.9, 12.0 kWh — exact |
+| 70 | Daily battery charge | kWh | × 0.1 | U_WORD | 🔵 | Captured: 3.7 / 11.0 / 6.7 kWh. Per-inverter contributions, not BMS-totals. UI page does not surface for direct verification. |
+| 71 | Daily battery discharge | kWh | × 0.1 | U_WORD | 🔵 | Captured: 7.9 / 0.3 / 8.5 kWh. P2's anomalously low value warrants verification. |
+| 76 | Daily energy bought | kWh | × 0.1 | U_WORD | 🔵 | Captured: 11.0 / 2.8 / 12.3 kWh |
+| 77 | Daily energy sold | kWh | × 0.1 | U_WORD | 🔵 | Captured: 0 / 0.5 / 0 kWh |
 
 ---
 
@@ -121,15 +121,17 @@ The SUN-8K-SG01LP1 shares the same register layout as the SG02LP1.
 
 ## Register ranges not yet probed
 
-The probe currently reads two ranges: 100–139 and 180–219. The following ranges
-contain known registers that need to be added:
+The probe currently reads four ranges: 60–99, 100–139, 140–179, and 180–219.
 
-| Range | Contains |
-|-------|---------|
-| 70–82 | Daily/total energy bought/sold, battery charge/discharge |
-| 90–91 | Inverter temperatures |
-| 96–97 | Total production (DWORD) |
-| 150–175 | Grid voltages, CT power, AC currents, inverter power |
+**AC current is still unaccounted for.** Solarman UI shows 7.0–7.9 A across the
+three phases, but no register in the probed ranges holds a value matching `70`,
+`79`, `700`, or `790` for the appropriate phase. Likely candidates for the next
+probe extension:
+
+| Range | Rationale |
+|-------|-----------|
+| 0–59 | Some Deye firmware variants place grid I/O measurements at low addresses |
+| 220–279 | Extended/auxiliary readings on newer firmware revisions |
 
 ---
 
