@@ -1,6 +1,9 @@
-@SolarMonitor.Api_HostAddress = http://localhost:5089
+@host = http://localhost:5089
 
-GET {{SolarMonitor.Api_HostAddress}}/weatherforecast/
+GET {{host}}/api/live
 Accept: application/json
 
 ###
+
+GET {{host}}/api/history?hours=24&bucketSeconds=120
+Accept: application/json

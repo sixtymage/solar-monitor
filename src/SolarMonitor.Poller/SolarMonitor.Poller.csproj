@@ -6,6 +6,19 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SolarMonitor.Core\SolarMonitor.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Schema.sql" LogicalName="SolarMonitor.Poller.Schema.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SolarMonitor.Core.Tests" />
   </ItemGroup>
 
 </Project>

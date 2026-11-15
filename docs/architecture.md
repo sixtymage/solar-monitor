@@ -27,20 +27,27 @@ The cloud connection can optionally be firewalled at the router once local monit
 ## System Components
 
 ```
-[Deye Dongle ×3]  — LAN, port 8899 (SolarmanV5/Modbus TCP)
+[LSW-3 logger ×3]  — LAN, port 8899 (SolarmanV5 / Modbus RTU)
        │
-[Poller Service]  — C# Worker Service, polls each inverter every 10s
+[Poller]           — C# worker; polls each inverter every 10 s on wall-clock-aligned ticks
        │
-[TimescaleDB]     — Time-series storage (PostgreSQL + TimescaleDB extension)
+[TimescaleDB]      — PostgreSQL + TimescaleDB extension
        │
-[ASP.NET Core API] — REST + SignalR; serves both web and mobile clients
-       │
-[React Web UI]    — TypeScript SPA, PWA-capable for Android install
-       │
-[Cloudflare Tunnel] — Exposes UI externally; same pattern as existing Plex setup
-       │
-  solar.thelinksys.co.za
+[Web]              — ASP.NET Core: JSON API + a static page (vanilla JS, uPlot)
 ```
+
+### v1 (Nov 2026) and what was deferred
+
+v1 is deliberately small: live values, today's energy, and one 24-hour chart. Compared with the
+April plan:
+
+- **No React yet.** One page with four tiles, a table and a chart doesn't justify a Node
+  toolchain and a build stage. The page is about 200 lines of plain JS, served from `wwwroot`, with
+  uPlot vendored (so it works with the internet down, which is when power data matters most).
+  React (plus SignalR and a PWA) stays the plan once there are several views. Nothing in the API
+  stops that.
+- **No SignalR.** The page polls `/api/live` every 10 s, the same rate the data changes.
+- **No Cloudflare Tunnel.** It's LAN only, with no authentication. Exposing it needs auth first.
 
 ## Key Design Decisions
 
@@ -79,7 +86,21 @@ Chosen over Blazor because:
 Single API serves both the web SPA and any future mobile/native clients.
 SignalR for live current-state push; REST for historical queries.
 
-## Data Model (Sketch)
+## Data Model
+
+The implemented schema is `src/SolarMonitor.Poller/Schema.sql`, applied idempotently at poller
+start. Differences from the sketch below:
+
+- `inverter` is keyed by the **inverter's** serial (registers 3–7); host and logger serial are
+  attributes. A logger was replaced once already.
+- `reading.time` is the **scheduled tick**, identical across inverters, so whole-house totals are a
+  `GROUP BY time`.
+- Each reading stores **raw registers 59–199** next to the decoded columns, so a decoding error can
+  be fixed later.
+- Settings registers (200–280) go to `settings_snapshot`, stored only on change.
+- Failed polls go to `poll_error`.
+
+The original sketch:
 
 ```sql
 -- One row per inverter per poll cycle (~10s intervals)

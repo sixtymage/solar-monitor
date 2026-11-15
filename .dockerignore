@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/.vs/
+.git/
+.claude/
+.env
+.env.*
+**/appsettings.Development.json
+**/appsettings.local.json
+**/*.user
+docs/
+tests/
+probe.py

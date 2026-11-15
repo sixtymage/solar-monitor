@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solar Monitor</title>
+  <link rel="stylesheet" href="vendor/uPlot.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Solar</h1>
+    <span id="status" class="status">loading…</span>
+  </header>
+
+  <main>
+    <section class="tiles" aria-label="Now">
+      <article class="tile pv">
+        <h2>Solar</h2>
+        <p class="big" id="pv">–</p>
+        <p class="sub" id="pv-sub"></p>
+      </article>
+      <article class="tile load">
+        <h2>House</h2>
+        <p class="big" id="load">–</p>
+        <p class="sub" id="load-sub"></p>
+      </article>
+      <article class="tile grid">
+        <h2 id="grid-label">Grid</h2>
+        <p class="big" id="grid">–</p>
+        <p class="sub" id="grid-sub"></p>
+      </article>
+      <article class="tile batt">
+        <h2>Battery</h2>
+        <p class="big" id="soc">–</p>
+        <p class="sub" id="batt-sub"></p>
+      </article>
+    </section>
+
+    <section class="card" aria-label="Last 24 hours">
+      <h2>Last 24 hours</h2>
+      <div id="chart"></div>
+    </section>
+
+    <section class="card" aria-label="Per inverter">
+      <h2>Per inverter</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Inverter</th><th>Solar</th><th>Load</th><th>Grid</th><th>Battery</th><th>Today PV</th><th>Temp</th><th>State</th></tr>
+          </thead>
+          <tbody id="phases"></tbody>
+        </table>
+      </div>
+      <p class="note">Grid: + import, − export. Battery: + discharge, − charge. Battery % and volts are shared by all three inverters.</p>
+    </section>
+  </main>
+
+  <script src="vendor/uPlot.iife.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

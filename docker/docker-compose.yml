@@ -1,47 +1,76 @@
+# Solar Monitor: TimescaleDB + poller + web, for the Synology NAS (or any Docker host).
+#
+# Images come from GHCR (built by .github/workflows/images.yml). Site config (inverter IPs and
+# serials, DB password) comes from a .env file next to this one; see .env.example. Nothing site-
+# specific belongs in this file: the repo is public.
+#
+# docker-compose v1 (DSM 7.1) needs the version key and has no `name:`; the project name is the
+# folder name, or COMPOSE_PROJECT_NAME.
 version: '3.9'
 
-# Solar Monitor — Docker Compose
-# Run on Synology NAS alongside existing Plex/cloudflared stack.
-# Secrets (inverter IPs, serial numbers) are injected via environment variables
-# or a .env file — never committed to source control.
+x-db-connection: &db-connection "Host=timescaledb;Database=solarmonitor;Username=solarmonitor;Password=${DB_PASSWORD};Gss Encryption Mode=Disable"
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
 
   timescaledb:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.31.0-pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: solarmonitor
       POSTGRES_USER: solarmonitor
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: ${TZ:-UTC}
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"   # expose locally for tooling; lock down in production
+      - "${DB_PORT:-5433}:5432"   # LAN access for psql/pgAdmin. 5433, not 5432, to stay clear of anything on the host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U solarmonitor -d solarmonitor"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
 
-  # poller:
-  #   build: ../src/SolarMonitor.Poller
-  #   restart: unless-stopped
-  #   environment:
-  #     ConnectionStrings__SolarMonitor: "Host=timescaledb;Database=solarmonitor;Username=solarmonitor;Password=${DB_PASSWORD}"
-  #     Inverters__0__Host: ${INVERTER_0_HOST}
-  #     Inverters__0__Serial: ${INVERTER_0_SERIAL}
-  #     Inverters__1__Host: ${INVERTER_1_HOST}
-  #     Inverters__1__Serial: ${INVERTER_1_SERIAL}
-  #     Inverters__2__Host: ${INVERTER_2_HOST}
-  #     Inverters__2__Serial: ${INVERTER_2_SERIAL}
-  #   depends_on:
-  #     - timescaledb
+  poller:
+    image: ghcr.io/sixtymage/solar-monitor-poller:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__SolarMonitor: *db-connection
+      Poller__IntervalSeconds: ${POLL_INTERVAL_SECONDS:-10}
+      TZ: ${TZ:-UTC}
+      Inverters__0__Name: ${INVERTER_0_NAME:-}
+      Inverters__0__Host: ${INVERTER_0_HOST:-}
+      Inverters__0__LoggerSerial: ${INVERTER_0_DONGLE_SERIAL:-0}
+      Inverters__0__InverterSerial: ${INVERTER_0_INVERTER_SERIAL:-}
+      Inverters__1__Name: ${INVERTER_1_NAME:-}
+      Inverters__1__Host: ${INVERTER_1_HOST:-}
+      Inverters__1__LoggerSerial: ${INVERTER_1_DONGLE_SERIAL:-0}
+      Inverters__1__InverterSerial: ${INVERTER_1_INVERTER_SERIAL:-}
+      Inverters__2__Name: ${INVERTER_2_NAME:-}
+      Inverters__2__Host: ${INVERTER_2_HOST:-}
+      Inverters__2__LoggerSerial: ${INVERTER_2_DONGLE_SERIAL:-0}
+      Inverters__2__InverterSerial: ${INVERTER_2_INVERTER_SERIAL:-}
+    depends_on:
+      - timescaledb     # the poller also retries until the database answers
+    logging: *logging
 
-  # api:
-  #   build: ../src/SolarMonitor.Api
-  #   restart: unless-stopped
-  #   environment:
-  #     ConnectionStrings__SolarMonitor: "Host=timescaledb;Database=solarmonitor;Username=solarmonitor;Password=${DB_PASSWORD}"
-  #   depends_on:
-  #     - timescaledb
-  #   ports:
-  #     - "5000:8080"
+  web:
+    image: ghcr.io/sixtymage/solar-monitor-web:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__SolarMonitor: *db-connection
+      TZ: ${TZ:-UTC}
+    ports:
+      - "${WEB_PORT:-8090}:8080"
+    depends_on:
+      - timescaledb
+    logging: *logging
 
 volumes:
   timescaledb_data:

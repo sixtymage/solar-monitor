@@ -5,4 +5,7 @@
     <Project Path="src/SolarMonitor.Poller/SolarMonitor.Poller.csproj" />
     <Project Path="src/SolarMonitor.Probe/SolarMonitor.Probe.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SolarMonitor.Core.Tests/SolarMonitor.Core.Tests.csproj" />
+  </Folder>
 </Solution>
