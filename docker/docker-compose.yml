@@ -8,7 +8,7 @@
 # folder name, or COMPOSE_PROJECT_NAME.
 version: '3.9'
 
-x-db-connection: &db-connection "Host=timescaledb;Database=solarmonitor;Username=solarmonitor;Password=${DB_PASSWORD}"
+x-db-connection: &db-connection "Host=timescaledb;Database=solarmonitor;Username=solarmonitor;Password=${DB_PASSWORD};Gss Encryption Mode=Disable"
 
 x-logging: &logging
   driver: json-file
