@@ -1,0 +1,101 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1c2330;
+  --muted: #687385;
+  --border: #e3e6eb;
+  --pv: #d99a0b;
+  --load: #2f6fdb;
+  --grid: #8a55d8;
+  --batt: #12966b;
+  --soc: #6b7280;
+  --warn: #c2410c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b;
+    --surface: #1b2029;
+    --text: #e6e9ef;
+    --muted: #97a1b1;
+    --border: #2b3240;
+    --pv: #f2b632;
+    --load: #6b9cf0;
+    --grid: #b08cf0;
+    --batt: #37c592;
+    --soc: #a3aab6;
+    --warn: #fb923c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+header, main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 16px;
+}
+
+h1 { font-size: 22px; margin: 0; }
+h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 6px; }
+
+.status { color: var(--muted); font-size: 13px; }
+.status.stale { color: var(--warn); font-weight: 600; }
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+@media (max-width: 720px) {
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+}
+
+.tile, .card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.tile { border-top: 4px solid var(--border); }
+.tile.pv { border-top-color: var(--pv); }
+.tile.load { border-top-color: var(--load); }
+.tile.grid { border-top-color: var(--grid); }
+.tile.batt { border-top-color: var(--batt); }
+
+.big { font-size: 30px; font-weight: 650; margin: 0; font-variant-numeric: tabular-nums; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.card { margin-bottom: 16px; }
+
+#chart { min-height: 320px; }
+#chart .u-legend { font-size: 13px; color: var(--text); }
+#chart .u-axis { color: var(--muted); }
+
+.scroll { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 600; font-size: 13px; }
+td.bad { color: var(--warn); font-weight: 600; }
+
+.note { color: var(--muted); font-size: 12px; margin: 10px 0 0; }

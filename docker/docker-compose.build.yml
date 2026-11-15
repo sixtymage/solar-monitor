@@ -1,0 +1,13 @@
+# Local development: build the images from source instead of pulling them.
+#   docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.build.yml up -d --build
+version: '3.9'
+
+services:
+  poller:
+    build:
+      context: ..
+      dockerfile: src/SolarMonitor.Poller/Dockerfile
+  web:
+    build:
+      context: ..
+      dockerfile: src/SolarMonitor.Api/Dockerfile
